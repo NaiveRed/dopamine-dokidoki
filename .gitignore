@@ -3,3 +3,7 @@
 
 # Python
 *.pyc
+
+# Experiments
+experiments
+*.log
