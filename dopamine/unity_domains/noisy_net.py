@@ -1,6 +1,6 @@
 # coding=utf-8
 """
-Noisy Networks for Exploration
+Noisy Networks for Exploration.
 https://arxiv.org/abs/1706.10295
 """
 import numpy as np

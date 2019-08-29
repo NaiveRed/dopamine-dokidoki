@@ -25,6 +25,7 @@ import time
 from dopamine.agents.dqn import dqn_agent
 from dopamine.agents.implicit_quantile import implicit_quantile_agent
 from dopamine.agents.rainbow import rainbow_agent
+from dopamine.agents.rainbow_doki import rainbow_doki_agent
 from dopamine.discrete_domains import checkpointer
 from dopamine.discrete_domains import iteration_statistics
 from dopamine.discrete_domains import logger
@@ -54,7 +55,7 @@ def create_agent(sess, environment, agent_name=None, summary_writer=None, debug_
 
     Args:
         sess: A `tf.Session` object for running associated ops.
-        environment: A gym environment (e.g. Atari 2600).
+        environment: A gym environment (e.g. Atari 2600, gym-unity).
         agent_name: str, name of the agent to create.
         summary_writer: A Tensorflow summary writer to pass to the agent
         for in-agent training statistics in Tensorboard.
@@ -83,6 +84,10 @@ def create_agent(sess, environment, agent_name=None, summary_writer=None, debug_
         return implicit_quantile_agent.ImplicitQuantileAgent(sess,
                                                              num_actions=environment.action_space.n,
                                                              summary_writer=summary_writer)
+    elif agent_name == 'rainbow_doki':
+        return rainbow_doki_agent.RainbowDokiAgent(sess,
+                                                   num_actions=environment.action_space.n,
+                                                   summary_writer=summary_writer)
     else:
         raise ValueError('Unknown agent: {}'.format(agent_name))
 
@@ -123,11 +128,11 @@ class Runner(object):
     A simple scenario to train a DQN agent is as follows:
 
     ```python
-    import dopamine.discrete_domains.atari_lib
+    import dopamine.discrete_domains.unity_lib
     base_dir = '/tmp/simple_example'
     def create_agent(sess, environment):
         return dqn_agent.DQNAgent(sess, num_actions=environment.action_space.n)
-    runner = Runner(base_dir, create_agent, atari_lib.create_atari_environment)
+    runner = Runner(base_dir, create_agent, unity_lib.create_unity_environment)
     runner.run()
     ```
     """
