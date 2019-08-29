@@ -15,6 +15,10 @@ import tensorflow as tf
 from dopamine.unity_domains.unity_wrappers import wrap_unity_env
 from dopamine.unity_domains.noisy_net import noisy_linear_layer
 
+NATURE_DQN_OBSERVATION_SHAPE = (84, 84)  # Size of observation from Unity game.
+NATURE_DQN_DTYPE = tf.uint8  # DType of observations. Use `tf.float32`, if it is vector observation.
+NATURE_DQN_STACK_SIZE = 4  # Number of frames in the state stack.
+
 
 @gin.configurable
 def create_unity_environment(game_path=None):
@@ -118,7 +122,7 @@ def rainbow_doki_mlp(num_actions,
 
         # Value
         if noisy:
-            value = noisy_linear_layer('noisy_val_1', net, [512, 512], is_training_ph)
+            value = tf.nn.relu(noisy_linear_layer('noisy_val_1', net, [512, 512], is_training_ph))
             value = noisy_linear_layer('noisy_val_2', value, [512, num_atoms], is_training_ph)
         else:
             value = tf.contrib.slim.fully_connected(net, 512)
@@ -126,7 +130,7 @@ def rainbow_doki_mlp(num_actions,
 
         # Advantage
         if noisy:
-            adv = noisy_linear_layer('noisy_adv_1', net, [512, 512], is_training_ph)
+            adv = tf.nn.relu(noisy_linear_layer('noisy_adv_1', net, [512, 512], is_training_ph))
             adv = noisy_linear_layer('noisy_adv_2', adv, [512, num_actions * num_atoms],
                                      is_training_ph)
         else:
@@ -141,7 +145,7 @@ def rainbow_doki_mlp(num_actions,
     else:
 
         if noisy:
-            net = noisy_linear_layer(net, [512, 512])
+            net = tf.nn.relu(noisy_linear_layer(net, [512, 512]))
             net = noisy_linear_layer(net, [512, num_actions * num_atoms])
         else:
             net = tf.contrib.slim.fully_connected(net, 512)
