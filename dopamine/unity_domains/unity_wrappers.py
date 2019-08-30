@@ -151,6 +151,7 @@ def wrap_unity_env(env_path, frame_skip=0, frame_stack=False, chw_style=False, *
                    uint8_visual=uint8_visual,
                    flatten_branched=flatten_branched)
 
+    # Be careful with `Decision Interval` in agent script of Unity ml-agent
     if frame_skip > 0:
         env = MaxAndSkipEnv(env, frame_skip)
     if chw_style:

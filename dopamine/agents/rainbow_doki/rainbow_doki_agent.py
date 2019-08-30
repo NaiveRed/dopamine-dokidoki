@@ -56,6 +56,7 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
                  observation_dtype=dqn_agent.NATURE_DQN_DTYPE,
                  stack_size=dqn_agent.NATURE_DQN_STACK_SIZE,
                  network=atari_lib.rainbow_network,
+                 double_dqn=True,
                  num_atoms=51,
                  vmax=10.,
                  gamma=0.99,
@@ -88,6 +89,7 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
             network_type object containing the tensors output by the network.
             See dopamine.discrete_domains.atari_lib.rainbow_network as
             an example.
+        double_dqn: bool, enable double dqn.
         num_atoms: int, the number of buckets of the value function distribution.
         vmax: float, the value distribution support is [-vmax, vmax].
         gamma: float, discount factor with the usual RL meaning.
@@ -117,6 +119,7 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
         """
         # We need this because some tools convert round floats into ints.
         vmax = float(vmax)
+        self._double_dqn = double_dqn
         self._num_atoms = num_atoms
         self._support = tf.linspace(-vmax, vmax, num_atoms)
         self._replay_scheme = replay_scheme
@@ -124,6 +127,9 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
         self.is_training_ph = tf.placeholder(dtype=tf.bool, shape=None, name='is_training_ph')
         self._optimizer = optimizer
 
+        tf.logging.info('Creating %s agent with the following additional parameters:',
+                        self.__class__.__name__)
+        tf.logging.info('\t double_dqn: %s', double_dqn)
         dqn_agent.DQNAgent.__init__(self,
                                     sess=sess,
                                     num_actions=num_actions,
@@ -165,6 +171,15 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
         """
         return self.network(self.num_actions, self._num_atoms, self._support,
                             self._get_network_type(), state, self.is_training_ph)
+
+    def _build_double_op(self):
+        """Builds the double Q-value network computations needed for training.
+
+        These are:
+        self.online_convnet: For computing the current state's Q-values. (in base class)        
+        self._replay_next_net_outputs:  The replayed next states' Q-values.        
+        """
+        self._replay_next_net_outputs = self.online_convnet(self._replay.next_states)
 
     def _build_replay_buffer(self, use_staging):
         """Creates the replay buffer used by the agent.
@@ -229,11 +244,14 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
         target_support = rewards + gamma_with_terminal * tiled_support
 
         # size of next_qt_argmax: 1 x batch_size
-        next_qt_argmax = tf.argmax(self._replay_next_target_net_outputs.q_values, axis=1)[:, None]
+        if self._double_dqn:
+            next_qt_argmax = tf.argmax(self._replay_next_net_outputs.q_values, axis=1)[:, None]
+        else:
+            next_qt_argmax = tf.argmax(self._replay_next_target_net_outputs.q_values,
+                                       axis=1)[:, None]
         batch_indices = tf.range(tf.to_int64(batch_size))[:, None]
         # size of batch_indexed_next_qt_argmax: batch_size x 2
         batch_indexed_next_qt_argmax = tf.concat([batch_indices, next_qt_argmax], axis=1)
-
         # size of next_probabilities: batch_size x num_atoms
         next_probabilities = tf.gather_nd(self._replay_next_target_net_outputs.probabilities,
                                           batch_indexed_next_qt_argmax)
@@ -246,6 +264,8 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
         Returns:
         train_op: An op performing one step of training from replay data.
         """
+        if self._double_dqn:
+            self._build_double_op()
         target_distribution = tf.stop_gradient(self._build_target_distribution())
 
         # size of indices: batch_size x 1.
@@ -363,7 +383,7 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
         else:
             epsilon = self.epsilon_fn(self.epsilon_decay_period, self.training_steps,
                                       self.min_replay_history, self.epsilon_train)
-        if random.random() <= epsilon:
+        if random.random() < epsilon:
             # Choose a random action with probability epsilon.
             return random.randint(0, self.num_actions - 1)
         else:

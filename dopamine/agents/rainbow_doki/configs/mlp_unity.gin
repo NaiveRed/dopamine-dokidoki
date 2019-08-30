@@ -6,6 +6,7 @@ import dopamine.unity_domains.run_experiment
 import dopamine.replay_memory.prioritized_replay_buffer
 import gin.tf.external_configurables
 
+RainbowDokiAgent.double_dqn = True
 RainbowDokiAgent.num_atoms = 51
 RainbowDokiAgent.vmax = 10.
 RainbowDokiAgent.gamma = 0.99
@@ -13,15 +14,16 @@ RainbowDokiAgent.update_horizon = 3
 RainbowDokiAgent.min_replay_history = 100000  # agent steps
 RainbowDokiAgent.update_period = 5
 RainbowDokiAgent.target_update_period = 8000  # agent steps
-RainbowDokiAgent.epsilon_train = 0 # 0.01 for no-NoisyNet
-RainbowDokiAgent.epsilon_eval = 0 # 0.001 for no-NoisyNet
-RainbowDokiAgent.epsilon_decay_period = 1 # 150000 agent steps for no-NoisyNet
+RainbowDokiAgent.epsilon_train = 0 # 0.01 for no NoisyNet
+RainbowDokiAgent.epsilon_eval = 0 # 0.001 for no NoisyNet
+RainbowDokiAgent.epsilon_decay_period = 1 # 150000 agent steps for no NoisyNet
 RainbowDokiAgent.replay_scheme = 'prioritized'
 RainbowDokiAgent.tf_device = '/gpu:0'  # use '/cpu:*' for non-GPU version
 RainbowDokiAgent.optimizer = @tf.train.AdamOptimizer()
 
 # Unity specific parameters
 RainbowDokiAgent.observation_shape = (53, )
+RainbowDokiAgent.observation_dtype = %tf.float32
 RainbowDokiAgent.network = @unity_lib.rainbow_doki_mlp
 
 # Network parameters
@@ -34,14 +36,15 @@ tf.train.AdamOptimizer.learning_rate = 0.0000625
 tf.train.AdamOptimizer.epsilon = 0.00015
 
 unity_lib.create_unity_environment.game_path = 'D:\\D_workspace\\Unity_project\\VectorBanana\\Unity Environment.exe'
+unity_lib.create_unity_environment.port = 9527
 create_agent.agent_name = 'rainbow_doki'
 
 # Total training step will be about `num_iterations * training_steps`.
 # The precise number will depend on the step in one episode.
-Runner.num_iterations = 2000
-Runner.training_steps = 10000  # agent steps
+Runner.num_iterations = 500
+Runner.training_steps = 20000  # agent steps
 # The max steps per episode may also set on unity
-Runner.evaluation_steps = 5000  # agent steps
+Runner.evaluation_steps = 10000  # agent steps
 Runner.max_steps_per_episode = 10000  # agent steps
 
 WrappedPrioritizedReplayBuffer.replay_capacity = 1000000
