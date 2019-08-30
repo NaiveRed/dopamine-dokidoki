@@ -6,7 +6,10 @@ import dopamine.unity_domains.run_experiment
 import dopamine.replay_memory.prioritized_replay_buffer
 import gin.tf.external_configurables
 
+RainbowDokiAgent.network = @unity_lib.rainbow_doki_mlp
 RainbowDokiAgent.double_dqn = True
+RainbowDokiAgent.dueling = True
+RainbowDokiAgent.noisy_net = True
 RainbowDokiAgent.num_atoms = 51
 RainbowDokiAgent.vmax = 10.
 RainbowDokiAgent.gamma = 0.99
@@ -24,12 +27,6 @@ RainbowDokiAgent.optimizer = @tf.train.AdamOptimizer()
 # Unity specific parameters
 RainbowDokiAgent.observation_shape = (53, )
 RainbowDokiAgent.observation_dtype = %tf.float32
-RainbowDokiAgent.network = @unity_lib.rainbow_doki_mlp
-
-# Network parameters
-rainbow_doki_mlp.num_layer = 2
-rainbow_doki_mlp.dueling = True
-rainbow_doki_mlp.noisy = True
 
 # Note these parameters are different from C51's.
 tf.train.AdamOptimizer.learning_rate = 0.0000625

@@ -13,7 +13,7 @@ import numpy as np
 import tensorflow as tf
 
 from dopamine.unity_domains.unity_wrappers import wrap_unity_env
-from dopamine.unity_domains.noisy_net import noisy_linear_layer
+from dopamine.common.noisy_net import noisy_linear_layer
 
 NATURE_DQN_OBSERVATION_SHAPE = (84, 84)  # Size of observation from Unity game.
 NATURE_DQN_DTYPE = tf.uint8  # DType of observations. Use `tf.float32`, if it is vector observation.
@@ -87,27 +87,29 @@ def rainbow_network(num_actions, num_atoms, support, network_type, state):
 
 
 @gin.configurable
-def rainbow_doki_mlp(num_actions,
-                     num_atoms,
-                     support,
-                     network_type,
-                     state,
-                     is_training_ph,
-                     num_layer=2,
-                     dueling=True,
-                     noisy=True):
+def rainbow_doki_mlp(
+        num_actions,
+        num_atoms,
+        support,
+        dueling,
+        noisy,
+        network_type,
+        state,
+        is_training_ph=None,
+        num_layer=2,
+):
     """The convolutional network used to compute agent's Q-value distributions.
 
     Args:
         num_actions: int, number of actions.
         num_atoms: int, the number of buckets of the value function distribution.
         support: tf.linspace, the support of the Q-value distribution.
+        dueling: bool, enable dueling network.
+        noisy: bool, enable noisy network.
         network_type: namedtuple, collection of expected values to return.
         state: `tf.Tensor`, contains the agent's current state.
         is_training_ph: `tf.placeholder` with tf.bool type, indicate the training flag for noisy net.
-        num_layer: int, number of hidden layers
-        dueling: bool, enable dueling network.
-        noisy: bool, enable noisy network.
+        num_layer: int, number of hidden layers.
 
     Returns:
         net: _network_type object containing the tensors output by the network.

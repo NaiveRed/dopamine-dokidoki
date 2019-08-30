@@ -57,6 +57,8 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
                  stack_size=dqn_agent.NATURE_DQN_STACK_SIZE,
                  network=atari_lib.rainbow_network,
                  double_dqn=True,
+                 dueling=True,
+                 noisy_net=True,
                  num_atoms=51,
                  vmax=10.,
                  gamma=0.99,
@@ -90,6 +92,8 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
             See dopamine.discrete_domains.atari_lib.rainbow_network as
             an example.
         double_dqn: bool, enable double dqn.
+        dueling: bool, enable dueling network.
+        noisy_net: bool, enable noisy network for exploration.
         num_atoms: int, the number of buckets of the value function distribution.
         vmax: float, the value distribution support is [-vmax, vmax].
         gamma: float, discount factor with the usual RL meaning.
@@ -120,16 +124,21 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
         # We need this because some tools convert round floats into ints.
         vmax = float(vmax)
         self._double_dqn = double_dqn
+        self._dueling = dueling
+        self._noisy_net = noisy_net
         self._num_atoms = num_atoms
         self._support = tf.linspace(-vmax, vmax, num_atoms)
         self._replay_scheme = replay_scheme
         # Training flag for noisy net
-        self.is_training_ph = tf.placeholder(dtype=tf.bool, shape=None, name='is_training_ph')
         self._optimizer = optimizer
+        self.is_training_ph = tf.placeholder(dtype=tf.bool, shape=None,
+                                             name='is_training_ph') if noisy_net else None
 
         tf.logging.info('Creating %s agent with the following additional parameters:',
                         self.__class__.__name__)
         tf.logging.info('\t double_dqn: %s', double_dqn)
+        tf.logging.info('\t dueling: %s', dueling)
+        tf.logging.info('\t noisy_net: %s', noisy_net)
         dqn_agent.DQNAgent.__init__(self,
                                     sess=sess,
                                     num_actions=num_actions,
@@ -169,8 +178,8 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
         Returns:
         net: _network_type object containing the tensors output by the network.
         """
-        return self.network(self.num_actions, self._num_atoms, self._support,
-                            self._get_network_type(), state, self.is_training_ph)
+        return self.network(self.num_actions, self._num_atoms, self._support, self._dueling,
+                            self._noisy_net, self._get_network_type(), state, self.is_training_ph)
 
     def _build_double_op(self):
         """Builds the double Q-value network computations needed for training.

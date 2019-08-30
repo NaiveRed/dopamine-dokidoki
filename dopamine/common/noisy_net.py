@@ -12,7 +12,7 @@ def mu_variable(name, shape):
     (exclude 1/sqrt(p) in this implementation). p is the number of inputs.
 
     Args:
-        name: Variable name, can not same as existing variables.
+        name: Variable name, can not be same as existing variables.
         shape: `list` or array-type, variable shape e.g. [input_unit, output_unit].
     """
     return tf.compat.v1.get_variable(name=name,
@@ -26,7 +26,7 @@ def mu_variable(name, shape):
 def sigma_variable(name, shape, sigma_0=0.5):
     """
     Args:
-        name: Variable name, can not same as existing variables.
+        name: Variable name, can not be same as existing variables.
         shape: `list` or array-type, variable shape e.g. [input_unit, output_unit].
         sigma_0: The hyperparameter for initialization, default is 0.5 in paper.
     """
@@ -40,7 +40,7 @@ def sigma_variable(name, shape, sigma_0=0.5):
 def noisy_linear_layer(name, input_, shape, is_training_ph):
     """
     Args:
-        name: Variable name, can not same as existing variables.
+        name: Variable name, can not be same as existing variables.
         input_: Input tensor.
         shape: `list` or array-type, variable shape e.g. [input_unit, output_unit].
         is_training_ph: `tf.placeholder` with tf.bool type, indicate the training flag for noisy net.
@@ -62,7 +62,6 @@ def noisy_linear_layer(name, input_, shape, is_training_ph):
         return eps_w, eps_b
 
     with tf.compat.v1.variable_scope(name):
-        # print('Scope:', tf.contrib.framework.get_name_scope())
         # Weight variables
         mu_weight = mu_variable('mu_weight', shape)
         sigma_weight = sigma_variable('sigma_weight', shape)
