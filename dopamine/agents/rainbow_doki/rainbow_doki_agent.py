@@ -254,6 +254,7 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
 
         # size of next_qt_argmax: 1 x batch_size
         if self._double_dqn:
+            # Double DQN, use online q value to choose action
             next_qt_argmax = tf.argmax(self._replay_next_net_outputs.q_values, axis=1)[:, None]
         else:
             next_qt_argmax = tf.argmax(self._replay_next_target_net_outputs.q_values,
