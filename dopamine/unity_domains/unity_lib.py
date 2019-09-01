@@ -98,7 +98,7 @@ def rainbow_doki_mlp(
         is_training_ph=None,
         num_layer=2,
 ):
-    """The convolutional network used to compute agent's Q-value distributions.
+    """The MLP network used to compute agent's Q-value distributions.
 
     Args:
         num_actions: int, number of actions.

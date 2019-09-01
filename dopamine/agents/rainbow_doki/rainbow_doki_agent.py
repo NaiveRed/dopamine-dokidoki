@@ -55,7 +55,7 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
                  observation_shape=dqn_agent.NATURE_DQN_OBSERVATION_SHAPE,
                  observation_dtype=dqn_agent.NATURE_DQN_DTYPE,
                  stack_size=dqn_agent.NATURE_DQN_STACK_SIZE,
-                 network=atari_lib.rainbow_network,
+                 network=atari_lib.rainbow_doki_network,
                  double_dqn=True,
                  dueling=True,
                  noisy_net=True,

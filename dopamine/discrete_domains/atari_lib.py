@@ -27,14 +27,14 @@ from __future__ import print_function
 
 import math
 
-import atari_py
 import gin
 import gym
-from gym.spaces.box import Box
+import cv2
 import numpy as np
 import tensorflow as tf
+from gym.spaces.box import Box
 
-import cv2
+from dopamine.common.noisy_net import noisy_linear_layer
 
 NATURE_DQN_OBSERVATION_SHAPE = (84, 84)  # Size of downscaled Atari 2600 frame.
 NATURE_DQN_DTYPE = tf.uint8  # DType of Atari 2600 observations.
@@ -131,6 +131,85 @@ def rainbow_network(num_actions, num_atoms, support, network_type, state):
 
     logits = tf.reshape(net, [-1, num_actions, num_atoms])
     probabilities = tf.contrib.layers.softmax(logits)
+    q_values = tf.reduce_sum(support * probabilities, axis=2)
+    return network_type(q_values, logits, probabilities)
+
+
+def rainbow_doki_network(num_actions,
+                         num_atoms,
+                         support,
+                         dueling,
+                         noisy,
+                         network_type,
+                         state,
+                         is_training_ph=None):
+    """The convolutional network used to compute agent's Q-value distributions.
+
+    Args:
+        num_actions: int, number of actions.
+        num_atoms: int, the number of buckets of the value function distribution.
+        support: tf.linspace, the support of the Q-value distribution.
+        dueling: bool, enable dueling network.
+        noisy: bool, enable noisy network.
+        network_type: namedtuple, collection of expected values to return.
+        state: `tf.Tensor`, contains the agent's current state.
+        is_training_ph: `tf.placeholder` with tf.bool type, indicate the training flag for noisy net.
+        num_layer: int, number of hidden layers.
+
+    Returns:
+        net: _network_type object containing the tensors output by the network.
+    """
+
+    weights_initializer = tf.contrib.slim.variance_scaling_initializer(factor=1.0 / np.sqrt(3.0),
+                                                                       mode='FAN_IN',
+                                                                       uniform=True)
+
+    net = tf.cast(state, tf.float32)
+    net = tf.div(net, 255.)
+    net = tf.contrib.slim.conv2d(net, 32, [8, 8], stride=4, weights_initializer=weights_initializer)
+    net = tf.contrib.slim.conv2d(net, 64, [4, 4], stride=2, weights_initializer=weights_initializer)
+    net = tf.contrib.slim.conv2d(net, 64, [3, 3], stride=1, weights_initializer=weights_initializer)
+    net = tf.contrib.slim.flatten(net)
+    # size of net: batch_size x 7744
+    in_size = net.shape[1].value
+
+    if dueling:
+
+        # Value
+        if noisy:
+            value = tf.nn.relu(
+                noisy_linear_layer('noisy_val_1', net, [in_size, 512], is_training_ph))
+            value = noisy_linear_layer('noisy_val_2', value, [512, num_atoms], is_training_ph)
+        else:
+            value = tf.contrib.slim.fully_connected(net, 512)
+            value = tf.contrib.slim.fully_connected(value, num_atoms, activation_fn=None)
+
+        # Advantage
+        if noisy:
+            adv = tf.nn.relu(noisy_linear_layer('noisy_adv_1', net, [in_size, 512], is_training_ph))
+            adv = noisy_linear_layer('noisy_adv_2', adv, [512, num_actions * num_atoms],
+                                     is_training_ph)
+        else:
+            adv = tf.contrib.slim.fully_connected(net, 512)
+            adv = tf.contrib.slim.fully_connected(adv, num_actions * num_atoms, activation_fn=None)
+
+        value = tf.reshape(value, [-1, 1, num_atoms])
+        adv = tf.reshape(adv, [-1, num_actions, num_atoms])
+        logits = value + adv - tf.reduce_mean(adv, axis=1, keepdims=True)
+        probabilities = tf.nn.softmax(logits, axis=2)
+
+    else:
+
+        if noisy:
+            net = tf.nn.relu(noisy_linear_layer(net, [in_size, 512]))
+            net = noisy_linear_layer(net, [512, num_actions * num_atoms])
+        else:
+            net = tf.contrib.slim.fully_connected(net, 512)
+            net = tf.contrib.slim.fully_connected(net, num_actions * num_atoms, activation_fn=None)
+
+        logits = tf.reshape(net, [-1, num_actions, num_atoms])
+        probabilities = tf.contrib.layers.softmax(logits)
+
     q_values = tf.reduce_sum(support * probabilities, axis=2)
     return network_type(q_values, logits, probabilities)
 

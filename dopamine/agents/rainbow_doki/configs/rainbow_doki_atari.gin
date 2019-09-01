@@ -1,25 +1,29 @@
 # Hyperparameters follow Hessel et al. (2018).
+# Copy from rainbow/rainbow_aaai.gin
 import dopamine.agents.rainbow.rainbow_agent
 import dopamine.discrete_domains.atari_lib
 import dopamine.discrete_domains.run_experiment
 import dopamine.replay_memory.prioritized_replay_buffer
 import gin.tf.external_configurables
 
-create_agent.agent_name = 'rainbow'
+create_agent.agent_name = 'rainbow_doki'
 
-RainbowAgent.num_atoms = 51
-RainbowAgent.vmax = 10.
-RainbowAgent.gamma = 0.99
-RainbowAgent.update_horizon = 3
-RainbowAgent.min_replay_history = 20000  # agent steps
-RainbowAgent.update_period = 4
-RainbowAgent.target_update_period = 8000  # agent steps
-RainbowAgent.epsilon_train = 0.01
-RainbowAgent.epsilon_eval = 0.001
-RainbowAgent.epsilon_decay_period = 250000  # agent steps
-RainbowAgent.replay_scheme = 'prioritized'
-RainbowAgent.tf_device = '/gpu:0'  # use '/cpu:*' for non-GPU version
-RainbowAgent.optimizer = @tf.train.AdamOptimizer()
+RainbowDokiAgent.double_dqn = True
+RainbowDokiAgent.dueling = True
+RainbowDokiAgent.noisy_net = True
+RainbowDokiAgent.num_atoms = 51
+RainbowDokiAgent.vmax = 10.
+RainbowDokiAgent.gamma = 0.99
+RainbowDokiAgent.update_horizon = 3
+RainbowDokiAgent.min_replay_history = 20000  # agent steps
+RainbowDokiAgent.update_period = 4
+RainbowDokiAgent.target_update_period = 8000  # agent steps
+RainbowDokiAgent.epsilon_train = 0 # 0.01 for no NoisyNet
+RainbowDokiAgent.epsilon_eval = 0 # 0.001 for no NoisyNet
+RainbowDokiAgent.epsilon_decay_period = 1 # 250000 for no NoisyNet
+RainbowDokiAgent.replay_scheme = 'prioritized'
+RainbowDokiAgent.tf_device = '/gpu:0'  # use '/cpu:*' for non-GPU version
+RainbowDokiAgent.optimizer = @tf.train.AdamOptimizer()
 
 # Note these parameters are different from C51's.
 tf.train.AdamOptimizer.learning_rate = 0.0000625
