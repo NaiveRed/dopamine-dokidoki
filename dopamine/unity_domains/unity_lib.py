@@ -25,7 +25,7 @@ def create_unity_environment(game_path=None, port=9527):
     """Wrap the unity environment
   """
     assert game_path is not None and game_path[-4:] == ".exe", "Game path error."
-    env = wrap_unity_env(game_path, port=port, use_visual=False)
+    env = wrap_unity_env(game_path, port=port, use_visual=False, multiagent=False)
     return env
 
 

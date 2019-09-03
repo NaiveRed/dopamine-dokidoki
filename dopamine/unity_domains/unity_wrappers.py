@@ -144,12 +144,14 @@ def wrap_unity_env(env_path, frame_skip=0, frame_stack=False, chw_style=False, *
     use_visual = unity_config.get('use_visual', True)
     uint8_visual = unity_config.get('uint8_visual', True)
     flatten_branched = unity_config.get('flatten_branched', True)
+    multiagent = unity_config.get('multiagent', False)
 
     env = UnityEnv(env_path,
                    worker_id=worker_id,
                    use_visual=use_visual,
                    uint8_visual=uint8_visual,
-                   flatten_branched=flatten_branched)
+                   flatten_branched=flatten_branched,
+                   multiagent=multiagent)
 
     # Be careful with `Decision Interval` in agent script of Unity ml-agent
     if frame_skip > 0:
