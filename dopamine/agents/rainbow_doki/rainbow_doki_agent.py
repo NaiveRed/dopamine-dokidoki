@@ -129,10 +129,9 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
         self._num_atoms = num_atoms
         self._support = tf.linspace(-vmax, vmax, num_atoms)
         self._replay_scheme = replay_scheme
-        # Training flag for noisy net
         self._optimizer = optimizer
-        self.is_training_ph = tf.placeholder(dtype=tf.bool, shape=None,
-                                             name='is_training_ph') if noisy_net else None
+        # Training flag for noisy net
+        self.is_training_ph = tf.placeholder(dtype=tf.bool, shape=None, name='is_training_ph')
 
         tf.logging.info('Creating %s agent with the following additional parameters:',
                         self.__class__.__name__)
