@@ -366,7 +366,7 @@ class RainbowDokiAgent(dqn_agent.DQNAgent):
                 self._sess.run(self._train_op, {self.is_training_ph: True})
                 if (self.summary_writer is not None and self.training_steps > 0
                         and self.training_steps % self.summary_writing_frequency == 0):
-                    summary = self._sess.run(self._merged_summaries)
+                    summary = self._sess.run(self._merged_summaries, {self.is_training_ph: False})
                     self.summary_writer.add_summary(summary, self.training_steps)
 
             if self.training_steps % self.target_update_period == 0:
