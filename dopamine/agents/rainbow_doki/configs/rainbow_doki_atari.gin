@@ -32,10 +32,13 @@ tf.train.AdamOptimizer.epsilon = 0.00015
 atari_lib.create_atari_environment.game_name = 'Pong'
 # Deterministic ALE version used in the AAAI paper.
 atari_lib.create_atari_environment.sticky_actions = False
+# In run_experiment
 Runner.num_iterations = 200
 Runner.training_steps = 250000  # agent steps
 Runner.evaluation_steps = 125000  # agent steps
 Runner.max_steps_per_episode = 27000  # agent steps
+create_agent.debug_mode  = True
+
 
 AtariPreprocessing.terminal_on_life_loss = True
 

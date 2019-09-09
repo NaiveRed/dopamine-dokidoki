@@ -6,6 +6,8 @@ import dopamine.unity_domains.run_experiment
 import dopamine.replay_memory.prioritized_replay_buffer
 import gin.tf.external_configurables
 
+create_agent.agent_name = 'rainbow_doki'
+
 RainbowDokiAgent.network = @unity_lib.rainbow_doki_mlp
 RainbowDokiAgent.double_dqn = True
 RainbowDokiAgent.dueling = True
@@ -34,8 +36,10 @@ tf.train.AdamOptimizer.epsilon = 0.00015
 
 unity_lib.create_unity_environment.game_path = 'D:\\D_workspace\\Unity_project\\VectorBanana\\Unity Environment.exe'
 unity_lib.create_unity_environment.port = 9527
-create_agent.agent_name = 'rainbow_doki'
 
+# run_experiment
+
+# In run_experiment
 # Total training step will be about `num_iterations * training_steps`.
 # The precise number will depend on the step in one episode.
 Runner.num_iterations = 500
@@ -43,6 +47,7 @@ Runner.training_steps = 20000  # agent steps
 # The max steps per episode may also set on unity
 Runner.evaluation_steps = 10000  # agent steps
 Runner.max_steps_per_episode = 10000  # agent steps
+create_agent.debug_mode  = True
 
 WrappedPrioritizedReplayBuffer.replay_capacity = 1000000
 WrappedPrioritizedReplayBuffer.batch_size = 32
