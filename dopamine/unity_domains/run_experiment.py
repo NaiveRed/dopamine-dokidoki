@@ -21,6 +21,7 @@ from __future__ import print_function
 import os
 import sys
 import time
+import csv
 
 from dopamine.agents.dqn import dqn_agent
 from dopamine.agents.implicit_quantile import implicit_quantile_agent
@@ -113,6 +114,8 @@ def create_runner(base_dir, schedule='continuous_train_and_eval'):
     # Continuously runs training until max num_iterations is hit.
     elif schedule == 'continuous_train':
         return TrainRunner(base_dir, create_agent)
+    elif schedule == 'only_eval':
+        return EvalRunner(base_dir, create_agent)
     else:
         raise ValueError('Unknown schedule: {}'.format(schedule))
 
@@ -291,9 +294,6 @@ class Runner(object):
             total_reward += reward
             step_number += 1
 
-            # Perform reward clipping.
-            reward = np.clip(reward, -1, 1)
-
             if (self._environment.game_over or step_number == self._max_steps_per_episode):
                 # Stop the run loop once we reach the true end of episode.
                 break
@@ -342,7 +342,7 @@ class Runner(object):
             # without generating a line break.
             sys.stdout.write('Steps executed: {} '.format(step_count) +
                              'Episode length: {} '.format(episode_length) +
-                             'Return: {}\r'.format(episode_return))
+                             'Return: {:.4f}\r'.format(episode_return))
             sys.stdout.flush()
         return step_count, sum_returns, num_episodes
 
@@ -520,3 +520,162 @@ class TrainRunner(Runner):
             tf.Summary.Value(tag='Train/AverageReturns', simple_value=average_reward),
         ])
         self._summary_writer.add_summary(summary, iteration)
+
+
+@gin.configurable
+class EvalRunner(Runner):
+    """Object that handles running experiments.
+
+    The `EvalRunner` differs from the base `Runner` class in that it does not
+    the training phase. Checkpointing and logging for the evaluation phase are
+    preserved as before.
+    """
+    def __init__(self,
+                 base_dir,
+                 create_agent_fn,
+                 create_environment_fn=unity_lib.create_unity_environment):
+        """Initialize the TrainRunner object in charge of running a full experiment.
+
+        Args:
+        base_dir: str, the base directory to host all required sub-directories.
+        create_agent_fn: A function that takes as args a Tensorflow session and an
+            environment, and returns an agent.
+        create_environment_fn: A function which receives a problem name and
+            creates a Gym environment for that problem (e.g. an Atari 2600 game).
+        """
+        tf.logging.info('Creating EvalRunner ...')
+        super(EvalRunner, self).__init__(base_dir, create_agent_fn, create_environment_fn)
+        self._agent.eval_mode = True
+        self._eval_log_dir = os.path.join(self._base_dir, 'eval_logs')
+        if not os.path.exists(self._eval_log_dir):
+            os.mkdir(self._eval_log_dir)
+
+    def _run_one_phase(self, min_steps, statistics, run_mode_str):
+        """Runs the agent/environment loop until a desired number of steps.
+
+        We follow the Machado et al., 2017 convention of running full episodes,
+        and terminating once we've run a minimum number of steps.
+        The difference between `Runner._run_one_phase` is
+        that we record the maximum return in this phase.
+
+        Args:
+        min_steps: int, minimum number of steps to generate in this phase.
+        statistics: `IterationStatistics` object which records the experimental
+            results.
+        run_mode_str: str, describes the run mode for this agent.
+
+        Returns:
+        Tuple containing the number of steps taken in this phase (int), the sum of
+            returns (float), the number of episodes performed (int), and the list of returns (list).
+        """
+        step_count = 0
+        num_episodes = 0
+        sum_returns = 0.
+
+        while step_count < min_steps:
+            episode_length, episode_return = self._run_one_episode()
+            statistics.append({
+                '{}_episode_lengths'.format(run_mode_str): episode_length,
+                '{}_episode_returns'.format(run_mode_str): episode_return
+            })
+            step_count += episode_length
+            sum_returns += episode_return
+            num_episodes += 1
+
+            # We use sys.stdout.write instead of tf.logging so as to flush frequently
+            # without generating a line break.
+            sys.stdout.write('Steps executed: {} '.format(step_count) +
+                             'Episode length: {} '.format(episode_length) +
+                             'Return: {:.4f}\r'.format(episode_return))
+            sys.stdout.flush()
+        return step_count, sum_returns, num_episodes
+
+    def _run_eval_phase(self, statistics):
+        """Run evaluation phase.
+
+        Args:
+        statistics: `IterationStatistics` object which records the experimental
+            results. Note - This object is modified by this method.
+
+        Returns:
+        num_episodes: int, The number of episodes run in this phase.
+        average_reward: float, The average reward generated in this phase.
+        """
+        # Perform the evaluation phase -- no learning.
+        self._agent.eval_mode = True
+        _, sum_returns, num_episodes = self._run_one_phase(self._evaluation_steps, statistics,
+                                                           'eval')
+        average_return = sum_returns / num_episodes if num_episodes > 0 else 0.0
+        std_return = np.std(
+            statistics.data_lists['eval_episode_returns']) if num_episodes > 0 else 0.0
+        max_return = max(statistics.data_lists['eval_episode_returns']) if num_episodes > 0 else 0.0
+        tf.logging.info('Average undiscounted return per evaluation episode: %.2f', average_return)
+        tf.logging.info('Maximum undiscounted return in %d evaluation episodes: %.2f', num_episodes,
+                        max_return)
+        tf.logging.info('Standard deviation along evaluation episodes: %.2f', std_return)
+        statistics.append({
+            'num_episodes': num_episodes,
+            'average_return': average_return,
+            'max_return': max_return,
+            'std_return': std_return
+        })
+        return num_episodes, average_return, max_return
+
+    def _run_one_iteration(self, iteration):
+        """Runs one iteration of agent/environment interaction.
+
+        An iteration involves running several episodes until a certain number of
+        steps are obtained. This method differs from the `_run_one_iteration` method
+        in the base `Runner` class in that it only runs the train phase.
+
+        Args:
+        iteration: int, current iteration number, used as a global_step for saving
+            Tensorboard summaries.
+
+        Returns:
+        A dict containing summary statistics for this iteration.
+        """
+        statistics = iteration_statistics.IterationStatistics()
+        num_episodes, average_return, max_return = self._run_eval_phase(statistics)
+
+        self._save_tensorboard_summaries(iteration, num_episodes, average_return, max_return)
+        return statistics.data_lists
+
+    def _save_tensorboard_summaries(
+            self,
+            iteration,
+            num_episodes,
+            average_return,
+            max_return,
+    ):
+        """Save statistics as tensorboard summaries."""
+        summary = tf.Summary(value=[
+            tf.Summary.Value(tag='EvalRunner/NumEpisodes', simple_value=num_episodes),
+            tf.Summary.Value(tag='EvalRunner/AverageReturns', simple_value=average_return),
+            tf.Summary.Value(tag='EvalRunner/MaxReturns', simple_value=average_return)
+        ])
+        self._summary_writer.add_summary(summary, iteration)
+
+    def _log_experiment(self, iteration, statistics):
+        """Records the results of the current iteration.
+
+        Args:
+        iteration: int, iteration number.
+        statistics: `IterationStatistics` object containing statistics to log.
+        """
+        file_path = os.path.join(
+            self._eval_log_dir,
+            self._logging_file_prefix + '_eval_iteration_{:d}.csv'.format(iteration))
+
+        with open(file_path, mode='w', newline='', encoding='utf-8') as eval_file:
+            csv_writer = csv.writer(eval_file)
+            for key, value in statistics.items():
+                csv_writer.writerow([key] + value)
+
+    def run_experiment(self):
+        """Runs a full experiment, spread over multiple iterations."""
+        tf.logging.info('Beginning evaluating...')
+
+        for iteration in range(self._num_iterations):
+            statistics = self._run_one_iteration(iteration)
+            self._log_experiment(iteration, statistics)
