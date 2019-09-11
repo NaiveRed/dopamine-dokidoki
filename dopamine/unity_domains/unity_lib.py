@@ -142,7 +142,7 @@ def rainbow_doki_mlp(
         value = tf.reshape(value, [-1, 1, num_atoms])
         adv = tf.reshape(adv, [-1, num_actions, num_atoms])
         logits = value + adv - tf.reduce_mean(adv, axis=1, keepdims=True)
-        probabilities = tf.nn.softmax(logits, axis=2)
+        probabilities = tf.contrib.layers.softmax(logits)
 
     else:
 
