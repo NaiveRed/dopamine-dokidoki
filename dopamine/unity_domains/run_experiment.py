@@ -652,7 +652,7 @@ class EvalRunner(Runner):
         summary = tf.Summary(value=[
             tf.Summary.Value(tag='EvalRunner/NumEpisodes', simple_value=num_episodes),
             tf.Summary.Value(tag='EvalRunner/AverageReturns', simple_value=average_return),
-            tf.Summary.Value(tag='EvalRunner/MaxReturns', simple_value=average_return)
+            tf.Summary.Value(tag='EvalRunner/MaxReturns', simple_value=max_return)
         ])
         self._summary_writer.add_summary(summary, iteration)
 
